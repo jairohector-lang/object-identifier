@@ -101,6 +101,33 @@ st.markdown("""
         line-height: 1.8;
     }
 
+    /* Object list */
+    .objects-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        margin-top: 0.5rem;
+    }
+    .object-row {
+        display: flex;
+        flex-direction: column;
+        background: rgba(255,255,255,0.7);
+        border-radius: 10px;
+        padding: 0.65rem 1rem;
+        border: 1px solid #e0e4ff;
+    }
+    .object-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a1a2e;
+    }
+    .object-desc {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 0.15rem;
+        line-height: 1.5;
+    }
+
     /* Spinner */
     .stSpinner > div {
         border-top-color: #667eea !important;
@@ -158,10 +185,13 @@ if source:
                         {
                             "type": "text",
                             "text": (
-                                "Identify the main object(s) in this image. "
-                                "Give a short title (1 line), then a brief description (2-3 sentences) "
-                                "of what you see, including any relevant details about the object, "
-                                "its condition, context, or surroundings."
+                                "List every distinct object you can see in this image. "
+                                "Format your response as follows:\n"
+                                "TITLE: a short overall scene title (1 line)\n"
+                                "OBJECTS:\n"
+                                "- Object name: one sentence describing it\n"
+                                "- Object name: one sentence describing it\n"
+                                "(continue for all objects you see)"
                             ),
                         },
                     ],
@@ -171,16 +201,33 @@ if source:
             st.error(f"Could not process image: {e}")
             st.stop()
 
-    lines = response.content[0].text.strip().split("\n", 1)
-    title = lines[0].strip()
-    body = lines[1].strip() if len(lines) > 1 else ""
+    raw = response.content[0].text.strip()
+
+    # Parse title
+    title = ""
+    objects = []
+    for line in raw.splitlines():
+        if line.startswith("TITLE:"):
+            title = line.replace("TITLE:", "").strip()
+        elif line.strip().startswith("-"):
+            objects.append(line.strip()[1:].strip())
+
+    # Build objects HTML
+    objects_html = "".join(
+        f'<div class="object-row"><span class="object-name">{o.split(":")[0].strip()}</span>'
+        f'<span class="object-desc">{o.split(":", 1)[1].strip() if ":" in o else ""}</span></div>'
+        for o in objects
+    )
 
     st.markdown(f"""
     <div class="result-card">
         <div class="result-chip">AI Analysis</div>
         <div class="result-title">{title}</div>
-        <div class="result-body">{body}</div>
+        <div class="objects-list">{objects_html}</div>
     </div>
     """, unsafe_allow_html=True)
+
+    st.code(raw, language=None)
+    st.caption("Use the copy button above to copy the full analysis")
 
 st.markdown('</div>', unsafe_allow_html=True)
